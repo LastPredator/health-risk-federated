@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  mlflow:
+    image: mlflow/mlflow:latest
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlruns
+    environment:
+      - MLFLOW_TRACKING_URI=http://0.0.0.0:5000
+
+  server:
+    build:
+      context: ../..
+      dockerfile: part2-mlops/docker/Dockerfile.server
+    depends_on:
+      - mlflow
+    ports:
+      - "8080:8080"
+
+  client01:
+    build:
+      context: ../..
+      dockerfile: part2-mlops/docker/Dockerfile.client
+    environment:
+      - CLIENT_ID=01
+    depends_on:
+      - server
+
+  client02:
+    build:
+      context: ../..
+      dockerfile: part2-mlops/docker/Dockerfile.client
+    environment:
+      - CLIENT_ID=02
+    depends_on:
+      - server
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"

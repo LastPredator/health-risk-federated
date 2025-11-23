@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+.venv
+env/
+venv/
+ENV/
+
+# MLflow
+mlruns/
+mlflow.db
+
+# Models
+*.pkl
+*.joblib
+models/
+
+# Docker
+.dockerignore
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data (if you download large datasets)
+data/
+*.csv
+*.parquet
