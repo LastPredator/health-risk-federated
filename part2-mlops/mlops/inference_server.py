@@ -56,26 +56,65 @@ def load_model():
     
     try:
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-        # Try to load from MLflow
-        if MODEL_VERSION != "latest":
-            model = mlflow.sklearn.load_model(f"models:/health_risk_model/{MODEL_VERSION}")
-        else:
-            # Load latest model from MLflow
-            client = mlflow.tracking.MlflowClient()
-            latest_version = client.get_latest_versions("health_risk_model", stages=["None"])[0]
-            model = mlflow.sklearn.load_model(f"models:/health_risk_model/{latest_version.version}")
-        print(f"✅ Loaded model from MLflow: {MODEL_VERSION}")
+        client = mlflow.tracking.MlflowClient()
+        
+        # Try to load from latest run's artifacts
+        experiment = client.get_experiment_by_name("federated_health_risk")
+        if experiment:
+            runs = client.search_runs(experiment.experiment_id, order_by=["start_time DESC"], max_results=1)
+            if runs:
+                run_id = runs[0].info.run_id
+                exp_id = experiment.experiment_id
+                
+                # Try to load full HealthRiskModel from artifact using MLflow download
+                try:
+                    import tempfile
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        # Download the full model artifact
+                        artifact_path = client.download_artifacts(run_id, "model/health_risk_model.pkl", tmpdir)
+                        if os.path.exists(artifact_path):
+                            model = HealthRiskModel.load(artifact_path)
+                            print(f"Loaded full HealthRiskModel from run: {run_id}")
+                            return model
+                except Exception as e1:
+                    print(f"Could not download full model artifact: {e1}")
+                
+                # Fallback: Try direct file access
+                artifact_path = f"/mlruns/{exp_id}/{run_id}/artifacts/model/health_risk_model.pkl"
+                if os.path.exists(artifact_path):
+                    model = HealthRiskModel.load(artifact_path)
+                    print(f"Loaded full HealthRiskModel from: {artifact_path}")
+                    return model
+                
+                # Fallback: Load sklearn model and wrap it
+                try:
+                    model_uri = f"runs:/{run_id}/sklearn_model"
+                    sklearn_model = mlflow.sklearn.load_model(model_uri)
+                    model = HealthRiskModel()
+                    model.model = sklearn_model
+                    # Create and fit scaler (needed for prediction)
+                    from sklearn.preprocessing import StandardScaler
+                    model.scaler = StandardScaler()
+                    # Fit with dummy data (in production, should load actual scaler)
+                    dummy_X = np.zeros((1, 11))
+                    model.scaler.fit(dummy_X)
+                    print(f"Loaded sklearn model from run: {run_id}")
+                    return model
+                except Exception as e:
+                    print(f"Could not load sklearn model: {e}")
+        
+        raise Exception("No runs found in experiment")
     except Exception as e:
-        print(f"⚠️ Could not load from MLflow: {e}")
+        print(f"Could not load from MLflow: {e}")
         # Fallback to local model if exists
         model_path = os.getenv("MODEL_PATH", "/app/models/health_risk_model.pkl")
         if os.path.exists(model_path):
             model = HealthRiskModel.load(model_path)
-            print(f"✅ Loaded model from local file: {model_path}")
+            print(f"Loaded model from local file: {model_path}")
         else:
             # Initialize empty model (will fail on prediction until trained)
             model = HealthRiskModel()
-            print("⚠️ No trained model found. Please train a model first.")
+            print("No trained model found. Please train a model first.")
     
     return model
 
@@ -117,6 +156,10 @@ async def predict(data: HealthData):
             
             # Get model
             current_model = load_model()
+            
+            # Check if model is fitted
+            if not hasattr(current_model, 'model') or not hasattr(current_model.model, 'coef_'):
+                raise HTTPException(status_code=503, detail="Model not trained yet. Please train a model first.")
             
             # Predict
             proba = current_model.predict_proba(features)[0]

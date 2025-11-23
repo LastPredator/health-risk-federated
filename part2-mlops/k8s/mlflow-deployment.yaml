@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
       - name: mlflow
-        image: mlflow/mlflow:latest
+        image: health-risk-federated-mlflow:latest
+        imagePullPolicy: Never
         ports:
         - containerPort: 5000
         env:

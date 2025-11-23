@@ -1,18 +1,21 @@
-version: '3.8'
-
 services:
   mlflow:
-    image: mlflow/mlflow:latest
+    image: health-risk-federated-mlflow:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.mlflow
     ports:
       - "5000:5000"
     volumes:
       - ./mlruns:/mlruns
     environment:
       - MLFLOW_TRACKING_URI=http://0.0.0.0:5000
+      - MLFLOW_BACKEND_STORE_URI=file:///mlruns
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=file:///mlruns
 
   server:
     build:
-      context: ../..
+      context: ..
       dockerfile: part2-mlops/docker/Dockerfile.server
     depends_on:
       - mlflow
@@ -23,7 +26,7 @@ services:
 
   client01:
     build:
-      context: ../..
+      context: ..
       dockerfile: part2-mlops/docker/Dockerfile.client
     environment:
       - CLIENT_ID=01
@@ -35,7 +38,7 @@ services:
 
   client02:
     build:
-      context: ../..
+      context: ..
       dockerfile: part2-mlops/docker/Dockerfile.client
     environment:
       - CLIENT_ID=02
@@ -46,12 +49,14 @@ services:
       - mlflow
   inference:
     build:
-      context: ../..
+      context: ..
       dockerfile: part2-mlops/docker/Dockerfile.inference
     depends_on:
       - mlflow
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+    volumes:
+      - ./mlruns:/mlruns:ro
     ports:
       - "8080:8080"
 

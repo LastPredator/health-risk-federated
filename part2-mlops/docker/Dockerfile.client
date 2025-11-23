@@ -23,5 +23,6 @@ ARG CLIENT_ID
 ENV CLIENT_ID=${CLIENT_ID}
 
 # Default command - will be overridden in docker-compose/k8s
-CMD ["python", "part1-data-model/run_federated.py", "client", "${CLIENT_ID}"]
+# Note: CLIENT_ID must be passed as argument at runtime
+CMD ["python", "part1-data-model/run_federated.py", "client", "01"]
 

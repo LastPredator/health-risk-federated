@@ -1,0 +1,25 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install MLflow
+RUN pip install --no-cache-dir mlflow==2.7.1
+
+# Create directory for MLflow data
+RUN mkdir -p /mlruns
+
+# Expose MLflow port
+EXPOSE 5000
+
+# Set environment variables
+ENV MLFLOW_BACKEND_STORE_URI=file:///mlruns
+ENV MLFLOW_DEFAULT_ARTIFACT_ROOT=file:///mlruns
+
+# Run MLflow server
+CMD ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--backend-store-uri", "file:///mlruns", "--default-artifact-root", "file:///mlruns"]
+

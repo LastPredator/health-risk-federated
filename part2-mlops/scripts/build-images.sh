@@ -26,6 +26,12 @@ docker build -t health-risk-federated-inference:latest \
   -f "$PROJECT_ROOT/part2-mlops/docker/Dockerfile.inference" \
   "$PROJECT_ROOT"
 
+# Build MLflow image
+echo "📦 Building MLflow image..."
+docker build -t health-risk-federated-mlflow:latest \
+  -f "$PROJECT_ROOT/part2-mlops/docker/Dockerfile.mlflow" \
+  "$PROJECT_ROOT"
+
 echo "✅ All images built successfully!"
 docker images | grep health-risk-federated
 
